@@ -1,191 +1,163 @@
 ===============================================================
   STUDYMEET — Expo SDK 54 — Setup & Run Guide
-  Last updated: May 2026
+  Updated: May 2026 (includes LAN + tunnel connection fixes)
 ===============================================================
 
-QUICK START (after downloading and unzipping)
-----------------------------------------------
-1. cd StudyMeet
-2. cp .env.example .env
-   → Edit .env with your Supabase URL and anon key (see Supabase section)
-3. npm install
-4. npx expo start --clear --tunnel
-5. Open Expo Go on your iPhone → tap "Scan QR Code" → scan the QR in terminal
+
+QUICK START
+-----------
+  cd StudyMeet
+  cp .env.example .env          ← EDIT with your real Supabase credentials
+  npm install
+  npx expo start --clear --tunnel
 
 
-FULL STEP-BY-STEP INSTRUCTIONS
+WHAT WAS FIXED IN THIS VERSION
 --------------------------------
+Three issues prevented the app from connecting to iPhone Expo Go:
 
-STEP 1 — Prerequisites (do this once)
-  • Node.js 18 or 20: https://nodejs.org
-  • Expo Go on iPhone: search "Expo Go" in the App Store
-  • Your iPhone and computer must be on the same Wi-Fi
-    (or use --tunnel mode which works over the internet)
+  FIX 1 — metro.config.js: Added unstable_enablePackageExports = false
+    WHY: Expo SDK 54 uses Metro 0.81+ which enables package exports by default.
+    @supabase/supabase-js v2 exports both 'browser' and 'node' conditions.
+    Metro picks the wrong WebSocket implementation, causing a bundle error
+    that Expo Go shows as "The Internet connection appears to be offline."
+    This was the root cause of the LAN connection failure.
+
+  FIX 2 — package.json: Added @expo/ngrok@^4.0.1 as devDependency
+    WHY: expo start --tunnel requires @expo/ngrok to be installed locally.
+    Without it, Expo tries to auto-install it at runtime, which times out
+    in many environments causing "ngrok tunnel took too long to connect."
+
+  FIX 3 — app.json: Removed placeholder EAS projectId
+    WHY: The value "YOUR_EAS_PROJECT_ID" in extra.eas.projectId can cause
+    Expo's tunnel authentication to fail. Removed for local Expo Go use.
+
+
+STEP-BY-STEP SETUP
+-------------------
+
+STEP 1 — Create your .env file (REQUIRED)
+  cp .env.example .env
+  
+  Open .env and fill in BOTH values:
+    EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+    EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
+  
+  Get these from: supabase.com → your project → Settings → API
+  The app CANNOT start without these — it will crash immediately.
 
 STEP 2 — Install dependencies
-  cd StudyMeet
   npm install
+  
+  This installs @expo/ngrok (now in devDependencies) which is required
+  for tunnel mode to work.
 
-  If you see any peer dependency warnings, ignore them — the
-  versions in package.json are tested for SDK 54.
+STEP 3 — Start the app
+  npx expo start --clear --tunnel
+  
+  Wait for the QR code to appear (may take 15-30 seconds for ngrok).
+  
+  Then in Expo Go on iPhone: tap Scan QR Code → scan the terminal QR.
 
-STEP 3 — Set up your Supabase environment
-  a. Create a free Supabase project at https://supabase.com
-  b. Run the SQL migrations in order:
+
+CONNECTION TROUBLESHOOTING
+---------------------------
+
+--- TUNNEL MODE ISSUES ---
+
+"ngrok tunnel took too long to connect"
+  → Make sure you ran npm install (installs @expo/ngrok locally)
+  → If still failing: npx expo install @expo/ngrok
+  → Try again: npx expo start --clear --tunnel
+
+"Tunnel connection failed" / ngrok auth error
+  → Free ngrok has session limits. Wait 60 seconds and retry.
+  → Or use LAN mode (see below) — faster and more reliable on same WiFi.
+
+--- LAN MODE ISSUES ---
+
+"The Internet connection appears to be offline"
+  → This is usually the metro.config.js package exports issue (already fixed).
+  → If you still see it after this fix:
+      1. Make sure your iPhone and Mac are on the EXACT SAME WiFi network.
+         Not "same router" — literally the same SSID. 
+         Guest networks are isolated and won't work.
+      2. Check your Mac firewall: System Settings → Network → Firewall
+         → Allow incoming connections for "node"
+      3. Try: npx expo start --clear --lan
+         (forces LAN mode explicitly)
+
+"Network request failed" on the Expo Go loading screen
+  → Your .env file is missing or has wrong Supabase credentials.
+  → Double-check the URL format: must start with https://
+  → Double-check the anon key: must be the full JWT string
+
+Metro stuck at "Starting Metro Bundler"
+  → Delete cache: rm -rf .expo node_modules/.cache
+  → Then: npx expo start --clear --tunnel
+
+Bundle error / red screen after QR scan
+  → Check the terminal for the actual error message
+  → Most common cause: .env missing or wrong Supabase URL
+  → Run: npx expo start --clear --tunnel (the --clear flag wipes bundle cache)
+
+--- COMPLETE RESET (if nothing works) ---
+  rm -rf node_modules .expo
+  npm install
+  npx expo start --clear --tunnel
+
+
+SUPABASE SETUP (if you haven't done this yet)
+-----------------------------------------------
+  1. Create free project at https://supabase.com
+  2. Run SQL migrations IN ORDER in Supabase → SQL Editor:
        supabase/migrations/001_schema.sql
        supabase/migrations/002_rls.sql
        supabase/migrations/003_functions.sql
        supabase/migrations/004_storage.sql
-     (Paste each file into Supabase → SQL Editor → Run)
-  c. Copy your project credentials from Supabase → Settings → API
-  d. Create your .env file:
-       cp .env.example .env
-     Then edit .env:
-       EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-       EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-
-STEP 4 — Start the app
-  npx expo start --clear --tunnel
-
-  • "--clear" wipes the Metro cache (important after SDK upgrade)
-  • "--tunnel" routes through Expo's servers — works even if your
-    phone and computer are on different networks
-
-STEP 5 — Open on iPhone
-  a. Open Expo Go
-  b. Tap "Scan QR Code"
-  c. Point at the QR code shown in your terminal
-  d. The app will bundle and launch (first load may take 30–60 sec)
-
-
-TROUBLESHOOTING
----------------
-
-"Something went wrong" on launch
-  → Make sure your .env file exists and has valid Supabase credentials
-  → Run: npx expo start --clear --tunnel
-
-"Unable to resolve module" errors
-  → Run: npm install
-  → Then: npx expo start --clear --tunnel
-
-App loads but shows blank/white screen
-  → Check terminal for red errors
-  → Make sure Supabase migrations have been run
-
-"Network response timed out" in Expo Go
-  → Use --tunnel mode (already set in the start:tunnel script)
-
-Metro bundler crash
-  → Delete .expo folder: rm -rf .expo
-  → Then: npx expo start --clear --tunnel
-
-TypeScript errors in editor (not blocking)
-  → Run: npx tsc --noEmit to see them
-  → These do not prevent the app from running
-
-Port already in use
-  → npx expo start --clear --tunnel --port 8082
-
-
-NPM SCRIPTS
------------
-  npm start              → expo start
-  npm run start:clear    → expo start --clear
-  npm run start:tunnel   → expo start --clear --tunnel  ← USE THIS FOR IPHONE
-  npm run ios            → open in iOS Simulator
-  npm run android        → open in Android Emulator
+  3. Create storage buckets (Supabase → Storage → New bucket):
+       avatars  (public)
+       photos   (public)
+  4. Copy credentials: Settings → API → Project URL + anon/public key
+  5. Paste into your .env file
 
 
 PROJECT STRUCTURE
 -----------------
 StudyMeet/
 ├── app/                    Expo Router screens
-│   ├── _layout.tsx         Root layout (auth guard, navigation)
-│   ├── auth/               Login, signup, onboarding screens
-│   ├── (tabs)/             Main tab screens
-│   │   ├── dashboard/      Home dashboard
-│   │   ├── discover/       Swipe/match discovery
-│   │   ├── groups/         Study groups
-│   │   ├── messages/       Message threads list
-│   │   └── profile/        Your profile
-│   └── modals/             Full-screen modals
-├── assets/                 Images and fonts
-│   └── images/             icon.png, splash.png, etc.
-├── components/             Reusable UI components
-├── constants/
-│   └── config.ts           Colors, exam options, study resources
-├── hooks/                  Custom React hooks
-│   ├── useNotifications.ts Push notification setup
-│   ├── useOnlineStatus.ts  Online/offline tracking
-│   └── useRealtime.ts      Supabase realtime subscriptions
-├── lib/
-│   └── supabase.ts         Supabase client + TypeScript types
-├── stores/
-│   ├── authStore.ts        Auth state (Zustand)
-│   └── uiStore.ts          Toast/loading state (Zustand)
-├── supabase/
-│   └── migrations/         SQL files to run in Supabase
-├── utils/
-│   └── index.ts            Helper functions
-├── app.json                Expo configuration
-├── babel.config.js         Babel (no nativewind)
-├── metro.config.js         Metro bundler config
-├── package.json            Dependencies (SDK 54)
-├── tsconfig.json           TypeScript config
-└── README.txt              ← You are here
+│   ├── _layout.tsx         Root layout (auth guard)
+│   ├── auth/               Sign in, sign up, onboarding
+│   ├── (tabs)/             5 main tab screens
+│   └── modals/             Full-screen modal screens
+├── assets/images/          icon.png, splash.png (placeholders — replace!)
+├── constants/config.ts     Colors, exam options, study resources
+├── hooks/                  useNotifications, useOnlineStatus, useRealtime
+├── lib/supabase.ts         Supabase client + all TypeScript types
+├── stores/                 authStore, uiStore (Zustand)
+├── supabase/migrations/    SQL files to run once in Supabase
+├── utils/index.ts          Date formatting helpers
+├── app.json                Expo config (EAS placeholder removed)
+├── babel.config.js         Babel (reanimated plugin only)
+├── metro.config.js         Metro (package exports fix for supabase)
+├── package.json            SDK 54 deps + @expo/ngrok devDep
+└── .env.example            Copy to .env and fill in Supabase creds
 
 
-SDK UPGRADE NOTES (51 → 54)
------------------------------
-Changes made during upgrade:
-  • All expo-* packages updated to SDK 54 compatible versions
-  • react-native updated to 0.76.9
-  • react-native-reanimated updated to ~3.16.7
-  • react-native-gesture-handler updated to ~2.21.2
-  • react-native-safe-area-context updated to 5.4.0
-  • nativewind removed (was not used — no className= in any file)
-  • metro.config.js simplified (removed nativewind/metro dependency)
-  • babel.config.js simplified (removed nativewind/babel plugin)
-  • global.css removed (was only needed for nativewind)
-  • expo-updates removed (requires native build; not compatible with Expo Go)
-  • @gorhom/bottom-sheet removed (not used in any screen)
-  • @shopify/flash-list removed (not used in any screen)
-  • expo-av removed (not used in any screen)
-  • expo-sharing removed (not used in any screen)
-  • newArchEnabled: true added to app.json (React Native new arch for SDK 54)
-  • All modal routes explicitly declared in root _layout.tsx
-  • router.replace() calls use 'as any' cast for expo-router v4 typed routes
+NPM SCRIPTS
+-----------
+  npm run start:tunnel    →  npx expo start --clear --tunnel  ← USE THIS
+  npm run start:clear     →  npx expo start --clear
+  npm start               →  npx expo start
 
 
-PACKAGES REMOVED (and why)
----------------------------
-  nativewind          → Not used (0 className= found), caused Metro issues
-  expo-updates        → Requires EAS/native build, breaks Expo Go
-  @gorhom/bottom-sheet → Not imported anywhere in the codebase
-  @shopify/flash-list → Not imported anywhere in the codebase
-  expo-av             → Not imported anywhere in the codebase
-  expo-sharing        → Not imported anywhere in the codebase
-  tailwindcss         → Only needed with nativewind
-
-
-SUPABASE STORAGE BUCKETS
--------------------------
-Create these in Supabase → Storage:
-  • avatars   (public bucket)
-  • photos    (public bucket)
-
-
-SUPPORT
--------
-If the app fails to start after following these steps:
-  1. Delete node_modules: rm -rf node_modules
-  2. Delete .expo: rm -rf .expo
-  3. npm install
-  4. npx expo start --clear --tunnel
-
-If you still have issues, check:
-  https://docs.expo.dev/troubleshooting/
-  https://github.com/expo/expo/issues
+ASSETS NOTE
+-----------
+The placeholder icon.png / splash.png / adaptive-icon.png in assets/images/
+are 1×1 pixel files. The app works fine with them in Expo Go.
+To use real assets, replace them with proper PNG files:
+  icon.png          1024×1024
+  splash.png        1284×2778 (or any size, resizeMode: contain)
+  adaptive-icon.png 1024×1024
 
 ===============================================================

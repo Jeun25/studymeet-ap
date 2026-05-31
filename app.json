@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0a1628"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.studymeet.app",
@@ -22,9 +24,14 @@
         "NSCameraUsageDescription": "StudyMeet uses your camera so you can take profile photos.",
         "NSPhotoLibraryUsageDescription": "StudyMeet needs access to your photos so you can upload a profile picture.",
         "NSMicrophoneUsageDescription": "StudyMeet uses your microphone for live study sessions.",
-        "UIBackgroundModes": ["fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
       },
-      "associatedDomains": ["applinks:studymeet.app"]
+      "associatedDomains": [
+        "applinks:studymeet.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -69,8 +76,9 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": { "origin": false },
-      "eas": { "projectId": "YOUR_EAS_PROJECT_ID" }
+      "router": {
+        "origin": false
+      }
     }
   }
 }
